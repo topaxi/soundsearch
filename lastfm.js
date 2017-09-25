@@ -37,7 +37,7 @@ function call(className, propName, options) {
           err.type = data.error
 
           if (err.type == lastfm.ERROR_INVALID_METHOD) {
-            throw err
+            reject(err)
           }
         }
 
