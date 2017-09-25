@@ -1,0 +1,15 @@
+{
+  "name": "soundsearch",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Damian Senn <damian.senn@topaxi.codes>",
+  "license": "MIT",
+  "bin": {
+    "soundsearch": "./index.js"
+  },
+  "dependencies": {
+    "@std/esm": "^0.10.1",
+    "inquirer": "^3.3.0"
+  },
+  "repository": "https://github.com/topaxi/soundsearch"
+}
