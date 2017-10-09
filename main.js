@@ -2,57 +2,80 @@ import { spawn } from 'child_process'
 import lastfm from './lastfm'
 import inquirer from 'inquirer'
 
-const KEY = ''
+const KEY = 'f4f7103885c7cb573513d2583a0d5ea7'
 const RETRIES = 3
 const PIRATEBAY = 'https://thepiratebay.org'
 
 lastfm.setAPIKey(KEY)
 
 async function main() { // eslint-disable-line
-  let tracks = await searchTrack(process.argv[2], process.argv[3])
-  let track
+  let trackSearch
 
-  if (!tracks || !tracks.length) {
-    console.log('No tracks found! :(')
+  main: for (;;) {
+    trackSearch = await inquirer.prompt([
+      {
+        message: 'Track name',
+        suffix: ':',
+        name: 'title',
+      },
+      {
+        message: 'Artist name',
+        suffix: ' (optional):',
+        name: 'artist',
+      }
+    ])
 
-    return
-  }
+    let tracks = await searchTrack(trackSearch.title, trackSearch.artist)
+    let track
 
-  do {
-    let selection = await inquirer.prompt({
-      type: 'list',
-      message: 'Select track',
-      name: 'track',
-      choices: tracks.map(t => ({
-        name: `${t.artist} - ${t.name}`,
-        value: t,
-      })),
-    })
+    if (!tracks || !tracks.length) {
+      console.log('No tracks found! :(')
 
-    if (!selection.track) return
+      return
+    }
 
-    track = await getTrack(selection.track)
+    do {
+      let selection = await inquirer.prompt({
+        type: 'list',
+        message: 'Select track',
+        name: 'track',
+        choices: tracks.map(t => ({
+          name: `${t.artist} - ${t.name}`,
+          value: t,
+        })),
+      })
 
-    // For some reason, lastfm sometimes does not return
-    // an album, but repeated requests do? wat?
-    let tries = RETRIES // eslint-disable-line
-    while (track.album === undefined && tries--) {
+      if (!selection.track) return
+
       track = await getTrack(selection.track)
-    }
-    if (track.album === undefined) {
-      console.log(`No album found for "${track.artist.name} - ${track.name}"`)
-      return // eslint-disable-line
-    }
-  } while (track.album === undefined)
 
-  console.log(`Album Artist: ${track.album.artist}`)
-  console.log(`Album title: ${track.album.title}`)
+      // For some reason, lastfm sometimes does not return
+      // an album, but repeated requests do? wat?
+      let tries = RETRIES // eslint-disable-line
+      while (track.album === undefined && tries--) {
+        track = await getTrack(selection.track)
+      }
+      if (track.album === undefined) {
+        console.log(`No album found for "${track.artist.name} - ${track.name}"`)
+        continue main
+      }
+    } while (track.album === undefined)
 
-  let args = [
-    `${PIRATEBAY}/search/${encodeURIComponent(track.album.title)}/0/99/100`,
-  ]
+    console.log(`Album Artist: ${track.album.artist}`)
+    console.log(`Album title: ${track.album.title}`)
 
-  spawn('firefox', args, { detached: true })
+    let searchString = [ track.album.artist, track.album.title ]
+      .map(s => s.trim())
+      .map(s => s.replace(/[^\w\d\s]/g, ''))
+      .map(s => s.replace(/\s{1,}/g, ' '))
+      .join(' ')
+
+    let args = [
+      `${PIRATEBAY}/search/${encodeURIComponent(searchString)}/0/99/100`,
+    ]
+
+    spawn('firefox', args, { detached: true })
+  }
 }
 
 function searchTrack(track, artist) {
