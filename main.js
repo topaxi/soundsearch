@@ -8,7 +8,7 @@ const PIRATEBAY = 'https://thepiratebay.org'
 
 lastfm.setAPIKey(KEY)
 
-async function main() { // eslint-disable-line
+async function main() {
   let trackSearch
 
   main: for (;;) {
@@ -22,7 +22,7 @@ async function main() { // eslint-disable-line
         message: 'Artist name',
         suffix: ' (optional):',
         name: 'artist',
-      }
+      },
     ])
 
     let tracks = await searchTrack(trackSearch.title, trackSearch.artist)
@@ -31,7 +31,7 @@ async function main() { // eslint-disable-line
     if (!tracks || !tracks.length) {
       console.log('No tracks found! :(')
 
-      return
+      continue main
     }
 
     do {
@@ -45,7 +45,7 @@ async function main() { // eslint-disable-line
         })),
       })
 
-      if (!selection.track) return
+      if (!selection.track) continue main
 
       track = await getTrack(selection.track)
 
@@ -56,7 +56,9 @@ async function main() { // eslint-disable-line
         track = await getTrack(selection.track)
       }
       if (track.album === undefined) {
-        console.log(`No album found for "${track.artist.name} - ${track.name}"`)
+        console.log(
+          `No album found for "${track.artist.name} - ${track.name}"`,
+        )
         continue main
       }
     } while (track.album === undefined)
@@ -64,11 +66,15 @@ async function main() { // eslint-disable-line
     console.log(`Album Artist: ${track.album.artist}`)
     console.log(`Album title: ${track.album.title}`)
 
-    let searchString = [ track.album.artist, track.album.title ]
+    let searchString = [
+      track.album.artist,
+      track.album.artist !== track.album.title ? track.album.title : '',
+    ]
       .map(s => s.trim())
-      .map(s => s.replace(/[^\w\d\s]/g, ''))
+      .map(s => s.replace(/[^\wäöüÄÖÜß\s]/gu, ''))
       .map(s => s.replace(/\s{1,}/g, ' '))
       .join(' ')
+      .trim()
 
     let args = [
       `${PIRATEBAY}/search/${encodeURIComponent(searchString)}/0/99/100`,
@@ -79,22 +85,22 @@ async function main() { // eslint-disable-line
 }
 
 function searchTrack(track, artist) {
-  return lastfm.Track.search({ track, artist })
+  return lastfm.Track
+    .search({ track, artist })
     .then(res => res.results.trackmatches.track)
 }
 
 function getTrack(track) {
   if (!track.mbid) {
-    return lastfm.Track.getInfo({ track: track.name, artist: track.artist })
+    return lastfm.Track
+      .getInfo({ track: track.name, artist: track.artist })
       .then(res => res.track)
   }
 
-  return lastfm.Track.getInfo({ mbid: track.mbid })
+  return lastfm.Track
+    .getInfo({ mbid: track.mbid })
     .then(res => res.track)
-    .catch(() =>
-      getTrack({ name: track.name, artist: track.artist })
-    )
+    .catch(() => getTrack({ name: track.name, artist: track.artist }))
 }
 
-main()
-  .then(() => void 0, console.error)
+main().then(() => void 0, console.error)
