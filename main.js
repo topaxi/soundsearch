@@ -39,10 +39,13 @@ async function main() {
         type: 'list',
         message: 'Select track',
         name: 'track',
-        choices: tracks.map(t => ({
-          name: `${t.artist} - ${t.name}`,
-          value: t,
-        })),
+        choices: [
+          ...tracks.map(t => ({
+            name: `${t.artist} - ${t.name}`,
+            value: t,
+          })),
+          { name: '*nope*', value: null },
+        ],
       })
 
       if (!selection.track) continue main
@@ -68,7 +71,9 @@ async function main() {
 
     let searchString = [
       track.album.artist,
-      track.album.artist !== track.album.title ? track.album.title : '',
+      track.album.artist.toLowerCase() !== track.album.title.toLowerCase()
+        ? track.album.title
+        : '',
     ]
       .map(s => s.trim())
       .map(s => s.replace(/[^\wäöüÄÖÜß\s]/gu, ''))
@@ -84,21 +89,21 @@ async function main() {
   }
 }
 
-function searchTrack(track, artist) {
-  return lastfm.Track
-    .search({ track, artist })
-    .then(res => res.results.trackmatches.track)
+async function searchTrack(track, artist) {
+  const res = await lastfm.Track.search({ track, artist })
+
+  return res.results !== undefined ? res.results.trackmatches.track : null
 }
 
 function getTrack(track) {
   if (!track.mbid) {
-    return lastfm.Track
-      .getInfo({ track: track.name, artist: track.artist })
-      .then(res => res.track)
+    return lastfm.Track.getInfo({
+      track: track.name,
+      artist: track.artist,
+    }).then(res => res.track)
   }
 
-  return lastfm.Track
-    .getInfo({ mbid: track.mbid })
+  return lastfm.Track.getInfo({ mbid: track.mbid })
     .then(res => res.track)
     .catch(() => getTrack({ name: track.name, artist: track.artist }))
 }
